@@ -8,9 +8,29 @@ if ($stock_sh[30]<date("Y-m-d")){
     	exit;
 }else{
 	$today=date("Y_m_d");
+	//交易量的比例
+	$now = getdate();
+	  	$h=$now[hours];
+	  	$min=$now[minutes];
+	  	$clickTime=0;
+	  	if($h<=11 && $h>=9){
+	  		$clickTime=($h-9.5)*60+$min;
+	  	} else if ($h>=13 && $h<15){
+	  		$clickTime = ($h-13)*60+$min+120;
+	  	} else if ($h>=15){
+	  		$clickTime = 240;
+	  	}
+	  	$lum=$clickTime/240;
+	  	$lume=number_format($lum,3);
+
 	$mysql = new SaeMysql();
 	$sql_insert_chosenday = "insert into chosenday ( name) values ('s_".$today."');";
 	$mysql->runSql($sql_insert_chosenday);
+
+	$sql_drop_sday="drop table s_".$today;
+	$mysql->runSql($sql_drop_sday);
+
+
 	$sql_create_stocks="create table s_".$today." ( id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, iid char(10) not null, name char(20) not null,picture char(10) not null, code int unsigned not null, start float not null );";
 	$mysql->runSql($sql_create_stocks);
 	$url_1="http://hq.sinajs.cn/list=";
@@ -19,7 +39,7 @@ if ($stock_sh[30]<date("Y-m-d")){
 	for($i=0;$i<count($big);$i++){
 		$r=$big[$i];
 		$s = get_data($url_1, $r['t0_id']);
-       if ($s && $s['c_now']<$s['c_ps'] && $r['t0_pf']<$r['t1_pf']&& $r['t0_pf']<$r['t0_ps'] && $r['t1_pf']<$r['t2_pf'] && $r['t0_m']<$r['t1_m'] && $r['t1_m']<$r['t2_m'] && $s['c_m']<0.8*$r['t0_m']){
+       if ($s && $s['c_now']<$s['c_ps'] && $r['t0_pf']<$r['t1_pf']&& $r['t0_pf']<$r['t0_ps'] && $r['t1_pf']<$r['t2_pf'] && $r['t0_m']<$r['t1_m'] && $r['t1_m']<$r['t2_m'] && $s['c_m']<0.9*$r['t0_m']*$lume){
 			$die3=2000000;
 			if($s['c_ph']-$s['c_pl']>$r['t0_ph']-$r['t0_pl']){$die3=$die3+7;}
 			if($r['t1_pf']<$r['t1_ps']){$die3=$die3+20;}
@@ -28,7 +48,7 @@ if ($stock_sh[30]<date("Y-m-d")){
 		}
 		if($s && $r['t0_ph']!=$r['t0_pl'] && $s['c_now']>$s['c_ps'] && ($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.08){
 			//小红
-			$min1=min($s['c_m'],$r['t0_m'],$r['t1_m'],$r['t2_m'],$r['t3_m'],$r['t4_m'],$r['t5_m'],$r['t6_m']);
+			$min1=min($s['c_m']/$lume,$r['t0_m'],$r['t1_m'],$r['t2_m'],$r['t3_m'],$r['t4_m'],$r['t5_m'],$r['t6_m']);
 			if(($r['t0_m']==$min1 || $r['t1_m']==$min1) && $s['c_now']>$r['t0_pf'] && $r['t1_pf']<$r['t1_ps']){
 				$xiaohong=80000000;
 				if(haoxingtai($s)){$xiaohong=$xiaohong+1;}
@@ -45,14 +65,14 @@ if ($stock_sh[30]<date("Y-m-d")){
                 if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']>0.01){$xhlh=$xhlh+900000;}
 				if(haoxingtai($s)){$xhlh=$xhlh+1; }
 				if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.05){$xhlh=$xhlh+20;}
-                if($s['c_m']>$r['t0_m']*0.95){$xhlh=$xhlh+300;}
+                if($s['c_m']/$lume>$r['t0_m']){$xhlh=$xhlh+300;}
 				insert_stocks($r['t0_id'], $mysql, "小红绿红", $xhlh, $r['t0_name'], $today,$s['c_now']);
 			}
 			//起风
 			$average=($r['t0_m']+$r['t1_m']+$r['t2_m']+$r['t3_m']+$r['t4_m']+$r['t5_m']+$r['t6_m'])/7;
-			if($s['c_m']>$average * 1.9 && $s['c_now']>$r['t0_pf']){
+			if($s['c_m']/$lume>$average * 2 && $s['c_now']>$r['t0_pf']){
 				$fangliang=550000000;
-                if($s['c_m']>1.7*$r['t0_m']){$fangliang=$fangliang+500000;}
+                if($s['c_m']/$lume>1.7*$r['t0_m']){$fangliang=$fangliang+500000;}
                 if($r['t0_pf']<$r['t0_ps']||$r['t1_pf']<$r['t1_ps']){$fangliang=$fangliang+5000000;}
 				if(haoxingtai($s)){$fangliang=$fangliang+1; }
 				if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.05){$fangliang=$fangliang+20;}
@@ -65,9 +85,9 @@ if ($stock_sh[30]<date("Y-m-d")){
 				
 				if(haoxingtai($s)){$fanzhuan=$fanzhuan+1;}
 				if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.05){$fanzhuan=$fanzhuan+20;}
-				if($s['c_m']>$r['t0_m']){$fanzhuan=$fanzhuan+300;}
+				if($s['c_m']/$lume>$r['t0_m']){$fanzhuan=$fanzhuan+300;}
 				if($r['t1_m']<$r['t2_m']){ $fanzhuan=$fanzhuan+4000;}
-				if($s['c_m']<2*$r['t0_m']){$fanzhuan=$fanzhuan+50000;}
+				if($s['c_m']/$lume<2*$r['t0_m']){$fanzhuan=$fanzhuan+50000;}
 				insert_stocks($r['t0_id'], $mysql, "反转", $fanzhuan, $r['t0_name'], $today,$s['c_now']);
 			}
 			//启明
@@ -82,21 +102,21 @@ if ($stock_sh[30]<date("Y-m-d")){
 				
 				if(haoxingtai($s)){$qiming=$qiming+1;}
 				if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.05){$qiming=$qiming+20;}
-				if($s['c_m']>$r['t0_m']){$qiming=$qiming+300;}
+				if($s['c_m']/$lume>$r['t0_m']){$qiming=$qiming+300;}
 				if($r['t1_m']<$r['t2_m']){ $qiming=$qiming+4000;}
-				if($s['c_m']<2*$r['t0_m']){$fanzhuan=$fanzhuan+50000;}
+				if($s['c_m']/$lume<2*$r['t0_m']){$fanzhuan=$fanzhuan+50000;}
 				if($r['t0_ps']<$r['t1_pf']){$qiming=$qiming+6000000;}
 				if($s['c_ps']>$r['t0_pf']){$qiming=$qiming+600000;}
 				insert_stocks($r['t0_id'], $mysql, "启明", $qiming, $r['t0_name'], $today,$s['c_now']);
 			}
 			//惯性
-			if($s['c_m']>0.96*$r['t0_m']
+			if($s['c_m']/$lume>$r['t0_m']
 			&& ($s['c_now']-$s['c_ps'])*($s['c_now']-$s['c_ps'])>($r['t0_pf']-$r['t0_ps'])*($r['t0_pf']-$r['t0_ps'])
 			&& $s['c_pl']>$r['t0_pl']
 			&& ($s['c_now']-$r['t0_pf'])/$r['t0_pf']>0.01){
 				$guan=10000000;
 				if(($s['c_now']-$r['t0_pf'])/$r['t0_pf']<0.05){$guan=$guan+20;}
-				if($s['c_m']<2*$r['t0_m']){$guan=$guan+4000;}
+				if($s['c_m']/$lume<2*$r['t0_m']){$guan=$guan+4000;}
 				if(haoxingtai($s)){$guan=$guan+1;}
 				if($s['c_ph']-$s['c_pl']>$r['t0_ph']-$r['t0_pl']){$guan=$guan+70000;}
 				if($r['t0_pf']<$r['t0_ps'] || $r['t1_pf']<$r['t1_ps']){$guan=$guan+800000;}
