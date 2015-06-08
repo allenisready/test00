@@ -125,6 +125,7 @@ if ($stock_sh[30]<date("Y-m-d")){
 		}		
 	}
 	$mysql->closeDb();
+	echo "done!";
 }
 function get_data($url_get, $id_get){
 	$url_now_ti=$url_get.$id_get;
